@@ -1,0 +1,62 @@
+TOPIC
+    about_Knowbe4
+
+SHORT DESCRIPTION
+    Simplifies PowerShell access to the KMSAT reporting API as well as to user management via the Selenium web driver.
+
+LONG DESCRIPTION
+
+EXAMPLES
+EXAMPLE 1: Connecting for the first time
+    # Stores your API token in AppData. Possible Location values are Temp, AppData, UserRoot
+    Save-Kb4Token -Token "$TOKEN" -HostURI "https://us.api.knowbe4.com" -Location AppData
+
+    # Connects to the KB4 api with the token we stored with Save-Kb4Token
+    Connect-Kb4 -TokenLocation AppData
+
+    # Start the web driver. This does NOT require calls to Save-Kb4Token and Connect-Kb4. But it does require Selenium and Chrome to be installed.
+    # The call to Start-Kb4Driver will open up the login page on the browser. You'll need to log-in manually.
+    $Driver = Start-Kb4Driver
+    if ($NULL -eq $Driver)
+    {
+        throw "Failed to login to Knowbe4"
+    }
+
+EXAMPLE 2: Creating a new user
+    $Driver = Start-Kb4Driver
+    New-Kb4User -Driver $Driver -Email "Zach_Alexander@TurdNuggets.com" -FirstName "Zach" -LastName "Alexander" `
+        -ManagerName "Biggus Dickus" -ManagerEmail "Biggus_Dickus@TurdNuggets.com" -Department "Customer Relations" `
+        -EmployeeStartDate (Get-Date -Year 1993 -Month 5 -Day 16)
+
+EXAMPLE 3: Migrating AzureAD environment to Knowbe4 without AAD Sync
+    # Import the Knowbe4 module
+    Import-Module -Name '\\sfg-srv-it\it_share$\Scripts\Knowbe4\Knowbe4.psm1'
+
+    # Connect to the RestAPI using a token stored in AppData
+    Connect-Kb4 -TokenLocation AppData
+
+    # Start the web driver
+    $Driver = Start-Kb4Driver
+
+    # Import AzureAD (AzureAD doesn't have a PowerShell 7 version.)
+    Import-Module AzureAD -UseWindowsPowerShell
+
+    # Connect to MSOnline
+    Connect-AzureAD
+
+    # Get a list of all users currently in KB4
+    $Kb4Users = Get-KB4Users
+
+    # Get all licensed AzureAD mailboxes that aren't in KB4 yet and create accounts for them.
+    Get-AzureADUser -All:$True | Where-Object {$_.AssignedLicenses -and $_.UserPrincipalName -notin $Kb4Users.email} | Foreach-Object {
+
+        # Get the manager object
+        $Manager = $_ | Get-AzureADUserManager
+
+        # Create a user in Knowbe4
+        New-Kb4User -Driver $Driver -Email $_.UserPrincipalName -FirstName $_.GivenName -LastName $_.SurName `
+            -Department $_.Department -ManagerName $Manager.DisplayName -ManagerEmail $Manager.UserPrincipalName # etc.
+    }
+
+KEYWORDS
+    Knowbe4 Phishing KB4 Phish
