@@ -16,6 +16,8 @@ EXAMPLE 1: Connecting for the first time
 
     # Start the web driver. This does NOT require calls to Save-Kb4Token and Connect-Kb4. But it does require Selenium and Chrome to be installed.
     # The call to Start-Kb4Driver will open up the login page on the browser. You'll need to log-in manually.
+
+    
     $Driver = Start-Kb4Driver
     if ($NULL -eq $Driver)
     {
@@ -30,7 +32,7 @@ EXAMPLE 2: Creating a new user
 
 EXAMPLE 3: Migrating AzureAD environment to Knowbe4 without AAD Sync
     # Import the Knowbe4 module
-    Import-Module -Name '\\sfg-srv-it\it_share$\Scripts\Knowbe4\Knowbe4.psm1'
+    Import-Modulue Knowbe4.psm1
 
     # Connect to the RestAPI using a token stored in AppData
     Connect-Kb4 -TokenLocation AppData
