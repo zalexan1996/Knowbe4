@@ -2,6 +2,7 @@
 . "$PSScriptRoot\Private\_Ensure-Connected.ps1"
 . "$PSScriptRoot\Private\_Invoke-RestWithPagination.ps1"
 . "$PSScriptRoot\Private\_KB4Connection.ps1"
+. "$PSScriptRoot\Private\_Start-Chrome.ps1"
 
 # Import all KB4 cmdlets
     # Authentication

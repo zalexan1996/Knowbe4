@@ -17,28 +17,6 @@ Optionally pass in an existing web driver. Use this if you use custom logic to m
 On success: A webdriver that has logged into the KB4 dashboard
 On failure: NULL
 #>
-
-Function Start-Chrome
-{
-    [CmdletBinding()]
-    Param(
-        [Parameter(Mandatory=$True)][String]$StartUrl,
-        [Parameter(Mandatory=$False)][Bool]$Visible
-    )
-
-    # Get the current chrome version
-    $ChromeVersion = Get-ChildItem "${ENV:ProgramFiles(x86)}\Google\Chrome\Application" | Where-Object { $_.Attributes -like "Directory" -and $_.Name -match "^\d+" } | Select-Object -First 1 -ExpandProperty Name
-
-    # Get the web driver for my Chrome version
-    Invoke-WebRequest -URI "https://chromedriver.storage.googleapis.com/$ChromeVersion/chromedriver_win32.zip" -OutFile $ENV:TEMP\chromedriver.zip
-
-    # Extract the zip
-    Expand-Archive $ENV:TEMP\chromedriver.zip -DestinationPath "$ENV:TEMP\chromedriver" -Force
-
-    # Start chrome with the correct web driver.
-    Start-SeChrome -WebDriverDirectory "$ENV:TEMP\chromedriver" -StartURL $StartUrl -Incognito -Quiet -Headless:(!$Visible) -Arguments "--ignore-certificate-errors"
-}
-
 Function Start-Kb4Driver
 {
     [CmdletBinding()]
@@ -63,11 +41,20 @@ Function Start-Kb4Driver
 
 
         # Type in the username
-        $Driver.FindElementById("email").SendKeys($Credential.Username)
+        $EmailTextBox = $Driver.FindElementById("email")
+        if ($NULL -eq $EmailTextBox)
+        {
+            throw "Failed to find the Email text box with id:email"
+        }
+        $EmailTextBox.SendKeys($Credential.Username)
 
         # Press Next to go to M365 authentication
-        $Driver.FindElementsByTagName("Button").Click()
-
+        $NextButton = $Driver.FindElementsByTagName("button") | Where-Object { $_.Text -like "Next" }
+        if ($NULL -eq $NextButton)
+        {
+            throw "Failed to find the Next button with tag:button and text:Next"
+        }
+        $NextButton.Click()
 
 
         ## M365 Login Page
@@ -76,23 +63,49 @@ Function Start-Kb4Driver
         ################################################################################
 
         # Type in the username
-        $Driver.FindElementsByName("loginfmt").SendKeys($Credential.Username)
+        $M365EmailTextBox = $Driver.FindElementsByName("loginfmt")
+        if ($NULL -eq $M365EmailTextBox)
+        {
+            throw "Failed to find the M365 Email text box with name:loginfmt"
+        }
+        $M365EmailTextBox.SendKeys($Credential.Username)
         
         # Click Next
-        $Driver.FindElementsByClassName("button_primary").Click()
+        $M365NextButton = $Driver.FindElementsByClassName("button_primary")
+        if ($NULL -eq $M365NextButton)
+        {
+            throw "Failed to find the M365 Next button with class:button_primary"
+        }
+        $M365NextButton.Click()
         
+        # Wait for their animation to finish
         Start-Sleep -Seconds 1
 
         # Send the password
-        $Driver.FindElementsByName("passwd").SendKeys($Credential.GetNetworkCredential().Password)
+        $M365PasswordTextBox = $Driver.FindElementsByName("passwd")
+        if ($NULL -eq $M365PasswordTextBox)
+        {
+            throw "Failed to find the M365 Password text box with name:passwd"
+        }
+        $M365PasswordTextBox.SendKeys($Credential.GetNetworkCredential().Password)
 
         # Click Sign In
-        $Driver.FindElementsByClassName("button_primary").Click()
+        $M365SignInButton = $Driver.FindElementsByClassName("button_primary")
+        if ($NULL -eq $M365SignInButton)
+        {
+            throw "Failed to find the M365 Sign-In button with class:button_primary"
+        }
+        $M365SignInButton.Click()
         
         Start-Sleep -Seconds 1
 
         # Click Yes on Stay Signed In?
-        $Driver.FindElementsByClassName("button_primary").Click()
+        $M365StaySignedInButton = $Driver.FindElementsByClassName("button_primary")
+        if ($NULL -eq $M365StaySignedInButton)
+        {
+            throw "Failed to find the M365 Stay signed-in button with class:button_primary"
+        }
+        $M365StaySignedInButton.Click()
         
         
         # Wait until the document has finished loading
