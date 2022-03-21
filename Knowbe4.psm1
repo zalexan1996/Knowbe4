@@ -22,4 +22,5 @@
     . "$PSScriptRoot\Public\New-Kb4User.ps1"
     . "$PSScriptRoot\Public\Set-Kb4User.ps1"
     . "$PSScriptRoot\Public\Remove-Kb4User.ps1"
+    . "$PSScriptRoot\Public\New-Kb4EmailTemplate.ps1"
     

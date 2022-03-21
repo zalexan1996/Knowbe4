@@ -80,6 +80,7 @@ CmdletsToExport = @(
     "Import-Kb4Token",
     "Save-Kb4Token",
     "Start-Kb4Driver",
+    "New-Kb4EmailTemplate",
     "New-Kb4User",
     "Set-Kb4User",
     "Remove-Kb4User"
