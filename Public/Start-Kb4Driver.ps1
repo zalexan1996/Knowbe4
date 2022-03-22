@@ -8,14 +8,13 @@ Steps:
 2. Starts the chrome webdriver and opens the KB4 login page.
 3. This is where you login to KB4 on the opened Chrome driver. TODO: Automate this
 4. The browser then navigates to the main login page. 
-5. If the page content indicates that you've logged in, it returns the web driver. Else NULL
+5. Returns the web driver even if the sign-in failed. It's up to the caller to verify that the driver is signed in. If all is good, navigating to training.knowbe4.com/ui/dashboard will not redirect to the sign-in page.
 
 .PARAMETER Driver
 Optionally pass in an existing web driver. Use this if you use custom logic to manage your drivers or don't use Chrome.
 
 .OUTPUTS
-On success: A webdriver that has logged into the KB4 dashboard
-On failure: NULL
+A webdriver that has logged into the KB4 dashboard
 #>
 Function Start-Kb4Driver
 {
@@ -26,86 +25,59 @@ Function Start-Kb4Driver
         [Parameter(Mandatory=$False)][bool]$Visible = $TRUE
     )
     
+    $Hints = @{
+        Url = "https://training.knowbe4.com/"
+        Kb4EmailTextBox = "//input[@qa-id='email']"
+        Kb4NextButton = "//button[@qa-id='submit']"
+        M365EmailTextBox = "//input[@type='email']"
+        M365NextButton = "//input[@type='submit']"
+        M365PasswordTextBox = "//input[@type='password']"
+    }
+
     try {
+
         # If the user didn't supply a web driver, download the required chrome webdriver and use that.
-        if ($NULL -eq $Driver)
-        {
-            # Go to Knowbe4
-            $Driver = Start-Chrome -StartUrl "https://training.knowbe4.com/" -Visible $Visible -ErrorAction Stop
+        if ($NULL -eq $Driver) {
+            $Driver = Start-Chrome -StartUrl $Hints.Url -Visible $Visible -ErrorAction Stop
         }
-        else 
-        {
-            Enter-SeUrl -Driver $Driver -Url "https://training.knowbe4.com/" -ErrorAction Stop
+        else {
+            TryNavigate $Driver $Hints.Url
         }
 
 
 
-        # Type in the username
-        $EmailTextBox = $Driver.FindElementById("email")
-        if ($NULL -eq $EmailTextBox)
-        {
-            throw "Failed to find the Email text box with id:email"
-        }
-        $EmailTextBox.SendKeys($Credential.Username)
-
-        # Press Next to go to M365 authentication
-        $NextButton = $Driver.FindElementsByTagName("button") | Where-Object { $_.Text -like "Next" }
-        if ($NULL -eq $NextButton)
-        {
-            throw "Failed to find the Next button with tag:button and text:Next"
-        }
-        $NextButton.Click()
+        # Type in the username and press next.
+        (TryGetElement $Driver $Hints.Kb4EmailTextBox).SendKeys($Credential.Username)
+        (TryGetElement $Driver $Hints.Kb4NextButton).Click()
 
 
+        # TODO: Support for non-SSO accounts
         ## M365 Login Page
         ################################################################################
         ################################################################################
         ################################################################################
 
         # Type in the username
-        $M365EmailTextBox = $Driver.FindElementsByName("loginfmt")
-        if ($NULL -eq $M365EmailTextBox)
-        {
-            throw "Failed to find the M365 Email text box with name:loginfmt"
-        }
-        $M365EmailTextBox.SendKeys($Credential.Username)
+        (TryGetElement $Driver $Hints.M365EmailTextBox).SendKeys($Credential.Username)
         
         # Click Next
-        $M365NextButton = $Driver.FindElementsByClassName("button_primary")
-        if ($NULL -eq $M365NextButton)
-        {
-            throw "Failed to find the M365 Next button with class:button_primary"
-        }
-        $M365NextButton.Click()
+        (TryGetElement $Driver $Hints.M365NextButton).Click()
         
-        # Wait for their animation to finish
+
+        # Wait for animations to finish
         Start-Sleep -Seconds 1
 
         # Send the password
-        $M365PasswordTextBox = $Driver.FindElementsByName("passwd")
-        if ($NULL -eq $M365PasswordTextBox)
-        {
-            throw "Failed to find the M365 Password text box with name:passwd"
-        }
-        $M365PasswordTextBox.SendKeys($Credential.GetNetworkCredential().Password)
+        (TryGetElement $Driver $Hints.M365PasswordTextBox).SendKeys($Credential.GetNetworkCredential().Password)
 
         # Click Sign In
-        $M365SignInButton = $Driver.FindElementsByClassName("button_primary")
-        if ($NULL -eq $M365SignInButton)
-        {
-            throw "Failed to find the M365 Sign-In button with class:button_primary"
-        }
-        $M365SignInButton.Click()
+        (TryGetElement $Driver $Hints.M365NextButton).Click()
         
+        # Wait for animations to finish
         Start-Sleep -Seconds 1
 
         # Click Yes on Stay Signed In?
-        $M365StaySignedInButton = $Driver.FindElementsByClassName("button_primary")
-        if ($NULL -eq $M365StaySignedInButton)
-        {
-            throw "Failed to find the M365 Stay signed-in button with class:button_primary"
-        }
-        $M365StaySignedInButton.Click()
+        (TryGetElement $Driver $Hints.M365NextButton).Click()
         
         
         # Wait until the document has finished loading
@@ -114,20 +86,21 @@ Function Start-Kb4Driver
             Start-Sleep -Seconds 1
         }
         
-        # If our URL after redirection was the dashboard, then we are logged in. Otherwise, it'll redirect it to the login url.
-        if ($Driver.URL -like "https://training.knowbe4.com/ui/dashboard")
+        if ($Driver.Url -like "https://training.knowbe4.com/ui/dashboard")
         {
-            # Output the chrome driver
             $Driver | Write-Output
         }
         else
         {
-            $NULL | Write-Output
+            throw "Failed to authenticate with Knowbe4"
         }
     }
     catch {
         Write-Host "Failed to start Chrome driver"
-
+        if ($Driver)
+        {
+            $Driver.Quit()
+        }
         throw $_
     }
 }

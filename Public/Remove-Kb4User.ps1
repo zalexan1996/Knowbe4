@@ -7,10 +7,17 @@ Function Remove-Kb4User
         [Parameter(Mandatory=$True, ParameterSetName="Archive")][Switch]$Archive,
         [Parameter(Mandatory=$True, ParameterSetName="Delete")][Switch]$Delete
     )
-
-    # Search for this user in Kb4
-    Enter-SeUrl -Url "https://training.knowbe4.com/ui/users/?search=$Email" -Driver $Driver
-
+    $Hints = @{
+        Url = "https://training.knowbe4.com/ui/users/?search=$Email"
+        DropDownButton = "//table//tr//button"
+        ArchiveButton = "//a[@class='dropdown-item' and contains(text(), 'Archive')]"
+        DeleteButton = "//a[@class='dropdown-item' and contains(text(), 'Delete')]"
+    }
+    
+    # If navigation failed, complain.
+    if (!(TryNavigate -Driver $Driver -Url $Hints.Url)) {
+        throw "Navigation to '$($Hints.Url)' failed.`nEnsure that the driver was properly authenticated."
+    }
 
     # Wait for the table to finish loading
     while ($driver.executeScript("return document.readyState") -notlike "complete" -or $Driver.FindElementsByTagName("table").GetAttribute("aria-busy") -like "true")
@@ -18,53 +25,36 @@ Function Remove-Kb4User
         Start-Sleep -Milliseconds 250
     }
 
-    $UserRow = $Driver.FindElementsByTagName("tr") | Where-Object { $_.Text -like "*$Email*"}
-    if ($NULL -eq $UserRow)
-    {
-        Throw "Couldn't find row entry for $Email"
-    }
-    
     # Click the drop-down button
-    $UserRow.FindElementsByTagName("button").Click()
+    (TryGetElement $Driver $Hints.DropDownButton).Click()
     
     # Search for the archive button. If the user is already archived, this won't exist and we'll just move on to the delete button.
-    $ArchiveLI = $UserRow.FindElementsByTagName("li") | Where-Object { $_.GetAttribute("role") -like "presentation" -and $_.Text -like "Archive" }
-    if ($ArchiveLI)
-    {
-        # click Archive
-        $ArchiveLI.Click()
-    
-        # Confirm archival
-        $ConfirmBtn = $Driver.FindElementsByTagName("button") | Where-Object { $_.Text -like "Confirm" }
-        if ($ConfirmBtn)
-        {
-            $ConfirmBtn.Click()
-        }
+    $Driver.FindElementsByTagName("li") | Where-Object {
+        $_.GetAttribute("role") -like "presentation" -and $_.Text -like "Archive" 
+    } | Foreach-Object {
+        $_.Click()
     }
 
+    # Confirm archival
+    (TryGetElement $Driver "//button[text()='Confirm']").Click()
 
     # Permanently delete
     if ($Delete.IsPresent)
     {
         Start-Sleep -Milliseconds 1000
-        
-        # Click the drop-down button again
-        $UserRow.FindElementsByTagName("button").Click()
+
+        # Click the drop-down button
+        (TryGetElement $Driver $Hints.DropDownButton).Click()
     
-        # Get the Delete button
-        $DeleteLI = $UserRow.FindElementsByTagName("li") | Where-Object {$_.GetAttribute("role") -like "presentation" -and $_.Text -like "Delete" }
-        if ($DeleteLI)
-        {
-            # click Delete
-            $DeleteLI.Click()
-    
-            # Confirm Delete
-            $ConfirmBtn = $Driver.FindElementsByTagName("button") | Where-Object { $_.Text -like "Confirm" }
-            if ($ConfirmBtn)
-            {
-                $ConfirmBtn.Click()
-            }
+        # Click the Delete button
+        $Driver.FindElementsByTagName("li") | Where-Object {
+            $_.GetAttribute("role") -like "presentation" -and $_.Text -like "Delete" 
+        } | Foreach-Object {
+            $_.Click()
         }
+
+        # Confirm Delete
+        (TryGetElement $Driver "//button[text()='Confirm']").Click()
     }
 }
 

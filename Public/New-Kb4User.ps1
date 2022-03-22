@@ -36,67 +36,55 @@ Function New-Kb4User
 
     # Edit these if the website changes their design.
     $Hints = @{
-        EmailInputId = "__BVID__103"
-        firstNameInputId = "__BVID__105"
-        lastNameInputId = "__BVID__107"
-        createButtonClass = "btn-primary"
-        createButtonText = "Create User"
         URL = "https://training.knowbe4.com/ui/users/users/new"
+        TableSearchURL = "https://training.knowbe4.com/ui/users/?search=$Email"
+
+        EmailInput = "//input[@name='email']"
+        FirstNameInput = "//input[@name='firstName']"
+        LastNameInput = "//input[@name='lastName']"
+        JobTitleInput = "//input[@name='jobTitle']"
+        CreateButton = "//button[@id='submit-button']"
+
+
+        CreatedUserLink = "//a[contains(@href, '/ui/users/') and contains(@href, '/details')]"
+    }
+
+    # If navigation failed, complain.
+    if (!(TryNavigate -Driver $Driver -Url $Hints.Url)) {
+        throw "Navigation to '$($Hints.Url)' failed.`nEnsure that the driver was properly authenticated."
     }
 
 
-    # Go to the create user page
-    Enter-SeUrl -Driver $Driver -Url $Hints["URL"]
+    (TryGetElement $Driver $Hints.EmailInput).SendKeys("$Email")
+    (TryGetElement $Driver $Hints.FirstNameInput).SendKeys("$FirstName")
+    (TryGetElement $Driver $Hints.LastNameInput).SendKeys("$LastName")
+    (TryGetElement $Driver $Hints.CreateButton).Click()
 
-    # Search for the inputs
-    $emailInput = $Driver.FindElementById($Hints["EmailInputId"])
-    $firstNameInput = $Driver.FindElementById($Hints["firstNameInputId"])
-    $lastNameInput = $Driver.FindElementById($Hints["lastNameInputId"])
-    $createButton = $Driver.FindElementByClassName($Hints["createButtonClass"]) | Where-Object Text -like $Hints["createButtonText"]
 
-    # Make sure the inputs are valid.
-    if ($NULL -eq $emailInput) { throw "Failed to find Email input with id:'$($Hints["EmailInputId"])'"}
-    if ($NULL -eq $firstNameInput) { throw "Failed to find First Name input with id:'$($Hints["firstNameInputId"])'"}
-    if ($NULL -eq $lastNameInput) { throw "Failed to find Last Name input with id:'$($Hints["lastNameInputId"])'"}
-    if ($NULL -eq $createButton) { throw "Failed to find Create User button with class:'$($Hints["createButtonClass"])' and Text:'$($Hints["createButtonText"])'"}
-
-    # Send the data
-    $emailInput.SendKeys($Email)
-    $firstNameInput.SendKeys($FirstName)
-    $lastNameInput.SendKeys($LastName)
-    $createButton.Click()
-
-    Start-Sleep -Milliseconds 2000
 
     # Navigate to the new user's page to get the user id
-    Enter-SeUrl -Url "https://training.knowbe4.com/ui/users/?search=$Email" -Driver $Driver
+    if (!(TryNavigate -Driver $Driver -Url $Hints.TableSearchURL -ExpectRedirection)) {
+        throw "Navigation to '$($Hints.TableSearchURL)' failed.`nEnsure that the driver was properly authenticated."
+    }
 
     # Wait for the table to finish loading
-    while ($driver.executeScript("return document.readyState") -notlike "complete" -or $Driver.FindElementsByTagName("table").GetAttribute("aria-busy") -like "true")
+    while ($Driver.FindElementsByTagName("table").GetAttribute("aria-busy") -like "true")
     {
         Start-Sleep -Milliseconds 250
     }
 
-    # Get the full URL to the new users page
-    $NewUserLink = $Driver.FindElementsByTagName("a") | Where-Object { $_.GetAttribute("href") -like "https://training.knowbe4.com/ui/users/*/details" }
-    
-    # Make sure we got a link to the new users's page
-    if ($NULL -eq $NewUserLink)
-    {
-        throw "Failed to find user page for newly created user: $Email"  
-    }
-
     # Extract the user id from the href
-    $user_id = (Select-String -Pattern "(?<=/)\d+" -InputObject $NewUserLink.GetAttribute("href") -AllMatches).Matches.Value
+    $newUserUrl = (TryGetElement $Driver $Hints.CreatedUserLink).GetAttribute("href")
+    $newUserId = [Regex]::Match($newUserUrl, "(?<=/)\d+").Value
 
     # Make sure the user id is valid.
-    if ([String]::IsNullOrEmpty($user_id))
+    if ([String]::IsNullOrEmpty($newUserId))
     {
         throw "Failed to extract user id for newly created user: $Email"   
     }
 
     # Since Set-Kb4User uses the same parameters that New-Kb4Users uses, we can just splat the hashtable of used parameters
-    Set-Kb4User -id $user_id @PSBoundParameters
+    Set-Kb4User -id $newUserId @PSBoundParameters
 }
 
 # SIG # Begin signature block

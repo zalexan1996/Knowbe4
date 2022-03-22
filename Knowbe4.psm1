@@ -2,7 +2,10 @@
 . "$PSScriptRoot\Private\_Ensure-Connected.ps1"
 . "$PSScriptRoot\Private\_Invoke-RestWithPagination.ps1"
 . "$PSScriptRoot\Private\_KB4Connection.ps1"
+. "$PSScriptRoot\Private\_SetElementProperty.ps1"
 . "$PSScriptRoot\Private\_Start-Chrome.ps1"
+. "$PSScriptRoot\Private\_TryGetElement.ps1"
+. "$PSScriptRoot\Private\_TryNavigate.ps1"
 
 # Import all KB4 cmdlets
     # Authentication
@@ -23,4 +26,6 @@
     . "$PSScriptRoot\Public\Set-Kb4User.ps1"
     . "$PSScriptRoot\Public\Remove-Kb4User.ps1"
     . "$PSScriptRoot\Public\New-Kb4EmailTemplate.ps1"
+    . "$PSScriptRoot\Public\Get-Kb4EmailTemplateCategory.ps1"
+    . "$PSScriptRoot\Public\New-Kb4EmailTemplateCategory.ps1"
     

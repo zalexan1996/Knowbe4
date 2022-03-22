@@ -83,7 +83,8 @@ CmdletsToExport = @(
     "New-Kb4EmailTemplate",
     "New-Kb4User",
     "Set-Kb4User",
-    "Remove-Kb4User"
+    "Remove-Kb4User",
+    "Get-Kb4EmailTemplateCategory"
 )
 
 # Variables to export from this module
